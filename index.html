@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cars</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+</head>
+<style>
+    body {
+        -webkit-backdrop-filter: blur(6px);
+        backdrop-filter: blur(6px);
+        background: url('carsbg.jpeg');
+        background-repeat: no-repeat, repeat;
+        background-size: cover;  
+    }
+</style>
+<body>
+
+<script>
+    $(document).ready(function(){
+        // AJAX Function to show car items as user types in input
+        $('#search').keyup(function(){
+            // Gets value of user input to search database 
+            var search = document.getElementById("search").value;
+            $.ajax({
+                url:'search.php',
+                data:{search:search},
+                type: 'POST',
+                success:function(data){
+                    if(!data.error){
+                        // Either displays the car items if found, or N/A if not
+                        $('#result').html(data);
+                    }
+                }
+            });
+        });
+    });
+    // Displays text explaining the point of the project
+    function about() {
+        var x = document.getElementById("aboutTxt");
+        x.style.padding = '20px';
+        x.style.backgroundColor = 'white';
+        var aboutBtn = document.getElementById("aboutBtn");
+        // Toggles between openning and closing about text & button 
+        if (x.style.display == "none") {
+            x.style.display = "block";
+            aboutBtn.style.backgroundColor = 'black';
+            aboutBtn.style.color = 'white';
+            document.getElementById("aboutBtn").value="Close";
+        } else {
+            x.style.display = "none";
+            aboutBtn.style.backgroundColor = 'grey';
+            aboutBtn.style.color = 'white';
+            document.getElementById("aboutBtn").value="About";
+        }
+        // Sends XMLHttpRequest to retrieve and display text in demo.txt file
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                document.getElementById("aboutTxt").innerHTML =
+                this.responseText;
+            }
+        };
+        xhttp.open("GET", "about.txt", true);
+        xhttp.send();
+
+    };
+
+    // Removes entire row when specific delete button of that row is clicked
+    function removeRow(button) {
+        if (confirm("Are you sure you want to delete this row?")){   
+            // Finds specific button clicked in order to delete that row
+            var realRow = button?.parentNode?.parentNode;
+            if (realRow) {
+                var realRowId = realRow.firstChild.innerText;
+            }
+            // Permanently deletes row from database
+            $.ajax( {
+                url:'delete.php',
+                data:{
+                    id:realRowId
+                },
+                type: 'POST',
+                success:function(data){
+                    if(!data.error){       
+                        // Removes row asynchronously so user doesn't have to refresh page  
+                        realRow.remove();
+                    }
+                } 
+            });
+
+        } else {
+            alert('Deletion cancelled');
+        }
+    }
+    // Updates items in row when specific update button of that row is clicked
+    function updateRow(button) {  
+
+        // Finds specific button and its id, make, model, and year 
+        var realRow = button?.parentNode?.parentNode;
+        var realRowId = realRow.firstChild.innerText;
+        var realRowMake = realRow.childNodes[1];
+        var realRowModel = realRow.childNodes[2];
+        var realRowYear = realRow.childNodes[3];
+
+        if (realRow.childNodes[1].contentEditable == 'true') {
+
+            realRowMake.contentEditable = 'false';
+            realRowModel.contentEditable = 'false';
+            realRowYear.contentEditable = 'false';
+            realRow.style.backgroundColor = 'white';
+
+            // Checks if user leaves any of the values empty
+            if ((!realRowMake.innerHTML === "<br>") || (realRowModel.innerHTML === "<br>") || (realRowYear.innerHTML === "<br>")) {
+                alert("Error: Cannot enter empty values");
+
+                realRow.style.backgroundColor = 'lightblue';
+                realRow.childNodes[1].contentEditable = 'true';
+                realRow.childNodes[2].contentEditable = 'true';
+                realRow.childNodes[3].contentEditable = 'true';
+
+            } else {
+                var newMake = realRowMake.innerHTML;
+                var newModel = realRowModel.innerHTML;
+                var newYear = realRowYear.innerHTML;
+
+                // Sending updated values to permanently update database with these values
+                $.ajax({
+                    url:'update.php',
+                    data:{
+                        id:realRowId,
+                        make:newMake,
+                        model:newModel,
+                        year:newYear,
+                    },
+                    type: 'POST',
+                    success:function(data){
+                        if(!data.error){
+                            alert("Item Successfully Updated");
+                        }
+                    }
+                });
+            }
+
+        // Row becomes lightblue (meaning editable) and items become editable
+        } else {
+            realRow.childNodes[1].contentEditable = 'true';
+            realRow.childNodes[2].contentEditable = 'true';
+            realRow.childNodes[3].contentEditable = 'true';
+            realRow.style.backgroundColor = 'lightblue';
+        }
+    }
+
+    // Uses Fetch API to display create modal and send those values to database
+    function createCar() {
+        var make = document.getElementById("make").value;
+        var model = document.getElementById("model").value;
+        var year = document.getElementById("year").value;
+
+        // Sends new car listing info to database if values are not empty
+        var data = new FormData();
+        if (!make || !model || !year) {
+            alert("Error: Cannot enter empty values");
+        } else {
+            data.append("make", make);
+            data.append("model", model);
+            data.append("year", year);
+
+        fetch("create.php", {
+            method: "POST",
+            body: data
+        })
+        
+        .then(response => response.text())
+        
+        .then((text) => {
+            // Resets form values to empty if successful
+            document.getElementById("make").value="";
+            document.getElementById("model").value="";
+            document.getElementById("year").value="";
+            var created = document.getElementById("created");
+            var tablelist = document.getElementById("tablelist");
+            var list = document.getElementById("list");
+
+            if (created.style.display == "none") {
+                created.style.display = "block";
+                
+                // Closes create modal and asynchronously displays the new car listing
+                created.addEventListener("click", close);
+                function close() {
+                    created.style.display = "none";
+                    fetch("read.php")
+                    .then (response => response.text())
+                    .then (text => {
+                        // Converts car info in table to strings to display to user
+                        const parser = new DOMParser();
+                        const htmlDocument = parser.parseFromString(text, "text/html");
+                        const table = htmlDocument.documentElement.querySelector("table");
+                        
+                        // Displays car table asychronously with new car listing
+                        if (list.children.length > 0) {
+                            tablelist.remove();
+                            list.children[0] = table;
+                        }
+                        else {
+                            list.removeChild(table);
+                        }
+                        list.appendChild(table);
+                    })
+                }
+            }
+        })
+        
+        .catch((error) => { 
+            console.log(error); 
+        }); 
+
+        return false;
+
+        } 
+    };
+
+    // Uses Fetch API to display car listings from database
+    function viewListOfCars() {
+        var x = document.getElementById("list");
+        var viewBtn = document.getElementById("view");
+
+        if (x.style.display == "none") {
+            fetch ("read.php")
+                .then(
+                    response => response.text())
+                .then(text => {
+                    // Converts car info in table to strings to display to user
+                    const parser = new DOMParser();
+                    const htmlDocument = parser.parseFromString(text, "text/html");
+                    const table = htmlDocument.documentElement.querySelector("table");
+                     
+                    if (x.children.length > 0) {
+                        x.children[0] = table;
+                    }
+                    else {
+                        x.appendChild(table);
+                    }
+                    x.style.display = "block";
+                    viewBtn.style.backgroundColor = 'black';
+                    viewBtn.style.color = 'white';
+                    document.getElementById("view").value="Collapse";
+                })
+                .catch((error) => { 
+                    console.log(error); 
+                });
+        } 
+        else {
+            viewBtn.style.backgroundColor = 'grey';
+            viewBtn.style.color = 'white';
+            viewBtn.value="View All";
+            x.style.display = 'none';
+        }
+    };
+
+    // Sets default to displaying table when page is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        viewListOfCars();
+    });
+    
+</script>
+    <div class="container">
+            <table class="table">
+                <thead>
+                    <tbody>
+                        <tr>
+                            <h1 style="text-align: center; color: white;">Cars Inventory</h1>
+                            <h2>
+                                <input type="button" class="btn btn-secondary" name="aboutBtn" id="aboutBtn" onclick="about()" value="About"/>
+<!-- CREATE MODAL -->
+                                <div class="modal fade" id="createModal" role="dialog">
+                                    <div class="modal-dialog">
+                                    
+                                      <div class="modal-content">
+                                        <div class="modal-header">
+                                          <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                          <h4 class="modal-title">Create Car Listing</h4>
+                                        </div>
+                                        <div class="modal-body text-center">
+                                            <form id="createForm">                                    
+                                                <div>
+                                                    <h2>Make</h2>
+                                                    <input type="text" name="make" id="make">
+                                                </div>
+                                                <div>
+                                                    <h2>Model</h2>
+                                                    <input type="text" name="model" id="model">
+                                                </div>
+                                                <div>
+                                                    <h2>Year</h2>
+                                                    <input type="text" name="year" id="year">
+                                                </div>
+                                                <br/>
+                                                <input type="button" class="btn btn-secondary" name="create" onclick='createCar()' id="create" value="Create"><br><br>
+                                            </form>
+                                            <script>
+                                                let create_btn = document.getElementById('create');
+                                                    create_btn.style.backgroundColor = 'green';
+                                                    create_btn.style.color = 'white';
+                                            </script>
+                                            <button style='display: none' id='created' class='btn btn-success'> Successfully Created! &nbsp; X</button>
+
+                                        </div>
+                                        <div class="modal-footer">
+                                          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                                        </div>
+                                      </div>
+                                      
+                                    </div>
+                                  </div>
+<!-- CREATE MODAL -->
+                                <input type="button" class="btn btn-secondary" name="view" id="view" onclick="viewListOfCars()" value="View All"><br><br>
+                            </h2>
+                            <h3 style="display:none" id="aboutTxt"></h3> 
+                            <td class="col-xs-12">
+                                <input type="text" name="search" id="search" class="form-control" placeholder="Search Our inventory"><br><br>
+                                <h2 id="result"></h2>
+                                <h2 style="display:none" id="list"></h2>
+                            </td>
+                        </tr>
+                    </tbody>
+                </thead>
+            </table>
+    </div>
+</body>
+</html>
+
